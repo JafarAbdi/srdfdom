@@ -620,6 +620,7 @@ bool srdf::Model::initXml(const urdf::ModelInterface& urdf_model, TiXmlElement* 
   loadLinkSphereApproximations(urdf_model, robot_xml);
   loadDisabledCollisions(urdf_model, robot_xml);
   loadPassiveJoints(urdf_model, robot_xml);
+  loadDifferentialDriveJoints(urdf_model, robot_xml);
 
   return true;
 }
@@ -680,6 +681,7 @@ void srdf::Model::clear()
   link_sphere_approximations_.clear();
   disabled_collisions_.clear();
   passive_joints_.clear();
+  differential_drive_joints_.clear();
 }
 
 std::vector<std::pair<std::string, std::string> > srdf::Model::getDisabledCollisions() const
@@ -688,4 +690,54 @@ std::vector<std::pair<std::string, std::string> > srdf::Model::getDisabledCollis
   for (std::size_t i = 0; i < disabled_collisions_.size(); ++i)
     result.push_back(std::make_pair(disabled_collisions_[i].link1_, disabled_collisions_[i].link2_));
   return result;
+}
+
+void srdf::Model::loadDifferentialDriveJoints(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml)
+{
+  for (TiXmlElement* vj_xml = robot_xml->FirstChildElement("differential_drive"); vj_xml;
+       vj_xml = vj_xml->NextSiblingElement("differential_drive"))
+  {
+    const char* jname = vj_xml->Attribute("name");
+    const char* angular_weight = vj_xml->Attribute("angular_weight");
+    if (!jname)
+    {
+      CONSOLE_BRIDGE_logError("Name of differential drive joint is not specified", NULL);
+      continue;
+    }
+    if (!angular_weight)
+    {
+      CONSOLE_BRIDGE_logError("Angular weight of differential drive joint is not specified", NULL);
+      continue;
+    }
+    DifferentialDriveJoint diff_drive_joint;
+    diff_drive_joint.name_ = boost::trim_copy(std::string(jname));
+    diff_drive_joint.angular_weight_ = std::stod(angular_weight);
+
+    if (!urdf_model.getJoint(diff_drive_joint.name_))
+    {
+      const auto virtual_joint_it = std::find_if(
+          virtual_joints_.cbegin(), virtual_joints_.cend(),
+          [&name = diff_drive_joint.name_](const VirtualJoint& virtual_joint) { return virtual_joint.name_ == name; });
+      if (virtual_joint_it == virtual_joints_.cend())
+      {
+        CONSOLE_BRIDGE_logError("Joint '%s' marked as differential drive is not known to the URDF nor is a virtual "
+                                "joint. Ignoring.",
+                                diff_drive_joint.name_.c_str());
+        continue;
+      }
+      else if (virtual_joint_it->type_ != "planar")
+      {
+        CONSOLE_BRIDGE_logError("Virtual joint '%s' marked as differential drive but its type isn't planar. Ignoring.",
+                                diff_drive_joint.name_.c_str());
+        continue;
+      }
+    }
+    else if (urdf_model.getJoint(diff_drive_joint.name_)->type != urdf::Joint::PLANAR)
+    {
+      CONSOLE_BRIDGE_logError("Joint '%s' marked as differential drive but its type isn't planar. Ignoring.",
+                              diff_drive_joint.name_.c_str());
+      continue;
+    }
+    differential_drive_joints_.push_back(diff_drive_joint);
+  }
 }

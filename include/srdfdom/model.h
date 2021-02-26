@@ -195,6 +195,15 @@ public:
     std::string name_;
   };
 
+  // Joints with differential drive constraint. This structure specifies information about such joints
+  struct DifferentialDriveJoint
+  {
+    /// The name of the new joint
+    std::string name_;
+    /// Angular weight
+    double angular_weight_;
+  };
+
   /// Get the name of this model
   const std::string& getName() const
   {
@@ -247,6 +256,12 @@ public:
     return link_sphere_approximations_;
   }
 
+  /// Get the list of the differential drive joints
+  const std::vector<DifferentialDriveJoint>& getDifferentialDriveJoints() const
+  {
+    return differential_drive_joints_;
+  }
+
   /// Clear the model
   void clear();
 
@@ -258,6 +273,7 @@ private:
   void loadLinkSphereApproximations(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml);
   void loadDisabledCollisions(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml);
   void loadPassiveJoints(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml);
+  void loadDifferentialDriveJoints(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml);
 
   std::string name_;
   std::vector<Group> groups_;
@@ -267,6 +283,7 @@ private:
   std::vector<LinkSpheres> link_sphere_approximations_;
   std::vector<DisabledCollision> disabled_collisions_;
   std::vector<PassiveJoint> passive_joints_;
+  std::vector<DifferentialDriveJoint> differential_drive_joints_;
 };
 typedef std::shared_ptr<Model> ModelSharedPtr;
 typedef std::shared_ptr<const Model> ModelConstSharedPtr;
